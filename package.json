@@ -1,0 +1,10 @@
+{
+  "name": "fallineage",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "lineage.mjs",
+  "scripts": {
+    "test": "node --test lineage.test.mjs"
+  },
+  "license": "MIT"
+}

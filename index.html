@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fallineage · Ed25519 provenance chains</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--surface:#15161f;--border:#2a2c3a;--text:#e6e7ee;--dim:#9296a6;--ok:#4caf50;--bad:#e05a4d;--accent:#6c8cff;font-family:system-ui,-apple-system,sans-serif}
+body{background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:1.5rem}
+.wrap{width:100%;max-width:42rem}
+h1{font-size:1.5rem}.sub{color:var(--dim);font-size:.9rem;margin-bottom:1.2rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:.6rem;padding:1.1rem;margin-bottom:1rem}
+button{padding:.5rem .9rem;background:transparent;border:1px solid var(--border);color:var(--text);border-radius:.4rem;cursor:pointer;font-size:.85rem;margin:.25rem .35rem 0 0}
+button.go{border-color:var(--accent);color:var(--accent)}
+button.bad{border-color:var(--bad);color:var(--bad)}
+.rec{font-family:ui-monospace,monospace;font-size:.72rem;padding:.4rem .5rem;border-radius:.3rem;background:var(--bg);border:1px solid var(--border);margin-top:.4rem;word-break:break-all}
+.rec b{color:var(--accent)}
+#verdict{font-size:1.2rem;font-weight:700;margin-top:.6rem}
+.valid{color:var(--ok)}.invalid{color:var(--bad)}
+.breaks{color:var(--bad);font-size:.78rem;font-family:ui-monospace,monospace;margin-top:.3rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>fallineage</h1>
+  <p class="sub">Build a signed fork-chain, verify it, then try to forge it — the signatures don't budge.</p>
+  <div class="card">
+    <button class="go" onclick="build()">Mint + fork ×3 (3 authors)</button>
+    <button class="bad" onclick="tamper()">Tamper with a record</button>
+    <button class="bad" onclick="forge()">Forge authorship</button>
+    <div id="chain"></div>
+    <div id="verdict"></div>
+    <div class="breaks" id="breaks"></div>
+  </div>
+</div>
+<script type="module">
+import { generateIdentity, mint, fork, verifyLineage } from './lineage.mjs';
+let chain = [];
+
+async function render() {
+  const v = await verifyLineage(chain);
+  document.getElementById('chain').innerHTML = chain.map(r =>
+    `<div class="rec"><b>seq ${r.seq}</b> · content ${r.contentHash.slice(0,10)}… · by ${r.author.slice(0,10)}… · id ${r.id.slice(0,10)}…</div>`).join('');
+  const vd = document.getElementById('verdict');
+  vd.textContent = v.valid ? '✓ LINEAGE VALID' : '✗ LINEAGE BROKEN';
+  vd.className = v.valid ? 'valid' : 'invalid';
+  document.getElementById('breaks').innerHTML = v.breaks.map(b => `• seq ${b.seq}: ${b.reason}`).join('<br>');
+}
+
+window.build = async () => {
+  const a = await generateIdentity(), b = await generateIdentity(), c = await generateIdentity();
+  const r0 = await mint('the original build', a);
+  const r1 = await fork(r0, 'b improved it', b);
+  const r2 = await fork(r1, 'c improved it', c);
+  chain = [r0, r1, r2];
+  render();
+};
+window.tamper = async () => {
+  if (!chain.length) await build();
+  chain[1] = { ...chain[1], contentHash: '00'.repeat(32) }; // swap the content, keep the sig
+  render();
+};
+window.forge = async () => {
+  if (!chain.length) await build();
+  const fake = await generateIdentity();
+  chain[2] = { ...chain[2], author: fake.pub }; // claim a different author
+  render();
+};
+build();
+</script>
+</body>
+</html>
