@@ -1,0 +1,12 @@
+[
+  {
+    "mutation": ">= → >",
+    "snippet": "if (!subtle) throw new Error('fallineage: Web Crypto (crypto.subtle) unavailable — needs a",
+    "reason": "string FP: the ' >= ' is inside the error-message string literal 'Node >= 20'; mutating it to 'Node > 20' only changes wording no test inspects — no behaviour changes."
+  },
+  {
+    "mutation": "< → <=",
+    "snippet": "const bytesOf = hex => { const u = new Uint8Array(hex.length / 2); for (let i = 0; i < u.l",
+    "reason": "equivalent: 'i < u.length' → 'i <= u.length' runs one extra iteration at i===u.length doing u[u.length] = parseInt(...). An out-of-bounds write to a Uint8Array is silently dropped (no throw, array unchanged), so the returned bytes are identical — semantically equivalent."
+  }
+]
