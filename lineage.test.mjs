@@ -165,3 +165,71 @@ test('verification is stable — re-verifying a good chain stays valid', async (
   assert.equal((await verifyLineage(chain)).valid, true);
   assert.equal((await verifyLineage(chain)).valid, true);
 });
+
+// ── mutation-gate hardening ─────────────────────────────────────────────
+// The malformed-field guard is an OR of four independent conditions. Asserting only `.valid === false`
+// lets a `|| → &&` mutant survive: the record still fails downstream (id mismatch) for a DIFFERENT
+// reason. These pin the SPECIFIC guard reason for each field isolated on its own, so the guard alone
+// must fire — killing the line-97 `|| → &&` mutants.
+test('a malformed sig ALONE is caught by the well-formed guard, not incidentally downstream', async () => {
+  const a = await generateIdentity();
+  const root = await mint('x', a);
+  const v = await verifyRecord({ ...root, sig: 'zz' }); // author/id/seq all valid — only sig is bad
+  assert.equal(v.valid, false);
+  assert.match(v.reason, /missing a well-formed/, 'the sig branch of the OR guard must fire on its own');
+});
+
+test('a malformed author ALONE is caught by the well-formed guard', async () => {
+  const a = await generateIdentity();
+  const root = await mint('x', a);
+  const v = await verifyRecord({ ...root, author: 'zz' });
+  assert.equal(v.valid, false);
+  assert.match(v.reason, /missing a well-formed/, 'the author branch of the OR guard must fire on its own');
+});
+
+test('a non-string id ALONE is caught by the well-formed guard', async () => {
+  const a = await generateIdentity();
+  const root = await mint('x', a);
+  const v = await verifyRecord({ ...root, id: 12345 }); // number, not string
+  assert.equal(v.valid, false);
+  assert.match(v.reason, /missing a well-formed/, 'the id branch of the OR guard must fire on its own');
+});
+
+test('a non-number seq ALONE is caught by the well-formed guard', async () => {
+  const a = await generateIdentity();
+  const root = await mint('x', a);
+  const v = await verifyRecord({ ...root, seq: '0' }); // string, not number
+  assert.equal(v.valid, false);
+  assert.match(v.reason, /missing a well-formed/, 'the seq branch of the OR guard must fire on its own');
+});
+
+// The small-order check is an OR: reject if the AUTHOR is small-order OR the sig R-component is. The
+// CRITICAL test above uses a zero author AND a zero sig (both small-order), so a `|| → &&` mutant still
+// fires. This isolates a small-order author with a NON-small-order (well-formed) sig — only the author
+// branch is true, so `&&` would not fire and the record would fail later with a different reason.
+test('a small-order author with a well-formed non-small-order sig is rejected AS small-order', async () => {
+  const rec = {
+    contentHash: await sha256Hex('forged'),
+    author: '0'.repeat(64),      // small-order (all zeros)
+    parent: null,
+    seq: 0,
+    sig: 'ab'.repeat(64),        // 128 hex, NOT small-order
+    id: 'deadbeef'.repeat(8),
+  };
+  const v = await verifyRecord(rec);
+  assert.equal(v.valid, false);
+  assert.match(v.reason, /small-order/, 'the author branch of the small-order OR must reject on its own');
+});
+
+// A null PREVIOUS element (typeof null === 'object', but !null is true) must be flagged via the `!prev`
+// disjunct — a `|| → &&` mutant would miss it. And the break must carry `rec && rec.seq` (the current
+// record's seq), NOT the whole record — a `&& → ||` mutant reports the object instead.
+test('a null previous element is flagged, and the break carries rec.seq (not the record object)', async () => {
+  const a = await generateIdentity();
+  const r0 = await mint('v1', a);
+  const cur = { ...r0, seq: 5 };                      // distinctive seq, placed AFTER a null element
+  const v = await verifyLineage([r0, null, cur]);
+  const brk = v.breaks.find(x => x.reason === 'previous chain element is not a record');
+  assert.ok(brk, 'null previous element must be reported (|| not &&)');
+  assert.strictEqual(brk.seq, 5, 'the break reports rec.seq via (rec && rec.seq), not the record object');
+});
