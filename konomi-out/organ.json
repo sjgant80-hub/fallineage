@@ -1,0 +1,18 @@
+{
+  "id": "fallineage",
+  "ring": "R1-perception",
+  "mesh": "niceassos-mesh",
+  "konomified": null,
+  "proof": {
+    "benchmark": "assessor-v0.7",
+    "core": "10/10",
+    "hash": "914bd0262892e81766fff9d431f85edd"
+  },
+  "behaviour": {
+    "gate": "witness",
+    "clean": true,
+    "score": 0.977,
+    "source": "lineage.mjs",
+    "skipped": false
+  }
+}
