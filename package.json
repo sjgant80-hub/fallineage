@@ -4,7 +4,7 @@
   "type": "module",
   "main": "lineage.mjs",
   "scripts": {
-    "test": "node --test lineage.test.mjs"
+    "test": "node --test"
   },
   "license": "MIT"
 }
