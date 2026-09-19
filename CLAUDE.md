@@ -27,5 +27,4 @@ CI runs `npm test` on every push.
 ## Seam
 
 Public, general-purpose provenance/signing tool. Ed25519 / content-address / lineage language only.
-Estate vocabulary (fork/mint/lineage/card) is fine; do NOT introduce the private cosmology (no
-κ/θ/Ψ, no element or dyad references, no "the Thirteen").
+Estate vocabulary (fork/mint/lineage/card) is fine; do NOT introduce the project's private internal taxonomy or notation.
